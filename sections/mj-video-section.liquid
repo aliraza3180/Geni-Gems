@@ -1,0 +1,304 @@
+{%- comment -%}
+  "Trusted By The Stars" — lazy video cards. Poster + play button only; the actual player
+  (store-hosted video, YouTube, or Vimeo) is injected on click so nothing video-related loads
+  until the visitor chooses to watch.
+  Optional Swiper carousel mode, togglable in section settings, with responsive slides-per-view.
+{%- endcomment -%}
+{%- liquid
+  assign vs_slider = section.settings.enable_slider
+-%}
+<section class="rf-stars-section">
+  <div class="container">
+    {%- if section.settings.heading != blank -%}<h2 class="rf-stars__heading">{{ section.settings.heading }}</h2>{%- endif -%}
+
+    <div class="rf-stars__slider-outer{% if vs_slider %} rf-stars__slider-outer--active{% endif %}">
+      <div class="rf-stars__grid{% if vs_slider %} swiper rf-stars__swiper{% endif %}">
+        {%- if vs_slider -%}<div class="swiper-wrapper">{%- endif -%}
+        {%- for block in section.blocks -%}
+          {%- liquid
+            assign vid = ''
+            assign provider = ''
+            assign fileurl = ''
+            if block.settings.video_file != blank
+              assign provider = 'file'
+              for s in block.settings.video_file.sources
+                if s.format == 'mp4'
+                  assign fileurl = s.url
+                endif
+              endfor
+              if fileurl == ''
+                assign fileurl = block.settings.video_file.sources.first.url
+              endif
+            else
+              assign url = block.settings.video_url
+              if url contains 'youtube.com/watch' or url contains 'youtu.be/' or url contains 'youtube.com/shorts'
+                assign provider = 'youtube'
+                if url contains 'v='
+                  assign vid = url | split: 'v=' | last | split: '&' | first
+                elsif url contains 'youtu.be/'
+                  assign vid = url | split: 'youtu.be/' | last | split: '?' | first
+                elsif url contains '/shorts/'
+                  assign vid = url | split: '/shorts/' | last | split: '?' | first
+                endif
+              elsif url contains 'vimeo.com/'
+                assign provider = 'vimeo'
+                assign vid = url | split: 'vimeo.com/' | last | split: '?' | first | split: '/' | first
+              endif
+            endif
+            assign poster = block.settings.poster
+            if poster == blank and block.settings.video_file != blank
+              assign poster = block.settings.video_file.preview_image
+            endif
+          -%}
+          <div class="rf-stars__card{% if vs_slider %} swiper-slide{% endif %}" {{ block.shopify_attributes }}>
+            <button type="button" class="rf-stars__play-wrap" data-rf-video data-provider="{{ provider }}" data-id="{{ vid }}" data-file="{{ fileurl }}" aria-label="Play video{% if block.settings.title != blank %}: {{ block.settings.title | escape }}{% endif %}">
+              {%- if poster != blank -%}
+                <img class="rf-stars__poster" loading="lazy"
+                     src="{{ poster | image_url: width: 480 }}"
+                     srcset="{{ poster | image_url: width: 300 }} 300w, {{ poster | image_url: width: 480 }} 480w, {{ poster | image_url: width: 720 }} 720w"
+                     sizes="(max-width:740px) 50vw, 25vw"
+                     width="480" height="746"
+                     alt="{{ block.settings.title | default: section.settings.heading | escape }}">
+              {%- elsif provider == 'youtube' and vid != blank -%}
+                <img class="rf-stars__poster" loading="lazy" src="https://i.ytimg.com/vi/{{ vid }}/hqdefault.jpg" width="480" height="360" alt="{{ block.settings.title | escape }}">
+              {%- else -%}
+                <span class="rf-stars__poster rf-stars__poster--empty"></span>
+              {%- endif -%}
+              <span class="rf-stars__play" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
+            </button>
+            {%- if block.settings.title != blank -%}<p class="rf-stars__title">{{ block.settings.title }}</p>{%- endif -%}
+          </div>
+        {%- endfor -%}
+        {%- if vs_slider -%}</div>{%- endif -%}
+      </div>
+
+      {%- if vs_slider -%}
+        {%- if section.settings.slider_arrows -%}
+          <button type="button" class="rf-stars__arrow rf-stars__arrow--prev" aria-label="Previous">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="rf-stars__arrow rf-stars__arrow--next" aria-label="Next">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        {%- endif -%}
+        {%- if section.settings.slider_dots -%}
+          <div class="rf-stars__pagination swiper-pagination"></div>
+        {%- endif -%}
+      {%- endif -%}
+    </div>
+  </div>
+</section>
+
+{% style %}
+  #shopify-section-{{ section.id }}{background:{{ section.settings.bg_color }};padding-top:{{ section.settings.padding_top }}px;padding-bottom:{{ section.settings.padding_bottom }}px;}
+  @media screen and (max-width:749px){#shopify-section-{{ section.id }}{padding-top:{{ section.settings.padding_top_mobile }}px;padding-bottom:{{ section.settings.padding_bottom_mobile }}px;}}
+  .rf-stars__heading{text-align:center;font-size:clamp(22px,3vw,30px);font-weight:700;color:#fff;margin:0 0 28px;}
+
+  .rf-stars__slider-outer{position:relative;}
+  .rf-stars__grid{display:grid;grid-template-columns:repeat({{ section.settings.columns }},1fr);gap:18px;width:100%;}
+  .rf-stars__card{display:flex;flex-direction:column;gap:10px;min-width:0;}
+
+  /* Swiper mode overrides */
+  .rf-stars__swiper{display:block;overflow:hidden;}
+  .rf-stars__swiper .swiper-wrapper{align-items:stretch;}
+  .rf-stars__swiper .rf-stars__card{height:100%;}
+
+  {%- liquid
+    assign vs_ar = section.settings.aspect_ratio
+    assign vs_adapt = section.settings.adapt_to_image
+  -%}
+  .rf-stars__play-wrap{position:relative;display:block;width:100%;border:0;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;background:#000;}
+  {%- if vs_adapt -%}
+    .rf-stars__play-wrap::before{content:none;display:none;}
+    .rf-stars__poster{position:relative;width:100%;height:auto;display:block;}
+  {%- else -%}
+    {%- case vs_ar -%}
+      {%- when '21:9' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:42.857%;}
+      {%- when '16:9' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:56.25%;}
+      {%- when '4:3' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:75%;}
+      {%- when '3:2' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:66.667%;}
+      {%- when '1:1' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:100%;}
+      {%- when '3:4' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:133.333%;}
+      {%- when '2:3' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:150%;}
+      {%- when '9:16' -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:177.778%;}
+      {%- else -%}.rf-stars__play-wrap::before{content:"";display:block;padding-top:140%;}
+    {%- endcase -%}
+  {%- endif -%}
+  .rf-stars__poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+  .rf-stars__poster--empty{position:absolute;inset:0;width:100%;height:100%;background:linear-gradient(135deg,#1a2c3a,#2a4254);}
+  .rf-stars__play{position:absolute;inset:0;margin:auto;width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;transition:transform .15s ease,background .15s ease;z-index:2;}
+  .rf-stars__play-wrap:hover .rf-stars__play{transform:scale(1.08);background:rgba(0,0,0,.6);}
+  .rf-stars__title{text-align:center;font-size:14px;margin:0;color:rgba(0,43,68,.85);}
+  .rf-stars__play-wrap iframe,.rf-stars__play-wrap video{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:3;object-fit:cover;background:#000;}
+
+  @media screen and (max-width:999px){ .rf-stars__grid:not(.rf-stars__swiper){grid-template-columns:repeat(3,1fr);gap:14px;} }
+  @media screen and (max-width:680px){ .rf-stars__grid:not(.rf-stars__swiper){grid-template-columns:repeat(2,1fr);gap:12px;} }
+
+  /* Arrows */
+  .rf-stars__arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:40px;height:40px;border-radius:50%;background:#7D6835;border:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15);transition:opacity .15s ease;}
+  .rf-stars__arrow svg{width:18px;height:18px;}
+  .rf-stars__arrow--prev{left:-10px;}
+  .rf-stars__arrow--next{right:-10px;}
+  .rf-stars__arrow.swiper-button-disabled{opacity:.3;cursor:default;}
+  @media screen and (max-width:680px){
+    .rf-stars__arrow{width:32px;height:32px;}
+    .rf-stars__arrow--prev{left:2px;}
+    .rf-stars__arrow--next{right:2px;}
+  }
+
+  /* Pagination dots */
+  .rf-stars__pagination{position:relative;margin-top:18px;text-align:center;line-height:1;}
+  .rf-stars__pagination .swiper-pagination-bullet{width:8px;height:8px;background:#002B44;opacity:.25;margin:0 4px;}
+  .rf-stars__pagination .swiper-pagination-bullet-active{opacity:1;}
+{% endstyle %}
+
+<script>
+  (function(){
+    document.querySelectorAll('[data-rf-video]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var provider = btn.getAttribute('data-provider');
+        var id = btn.getAttribute('data-id');
+        var file = btn.getAttribute('data-file');
+        var el;
+        if (provider === 'file' && file) {
+          el = document.createElement('video');
+          el.setAttribute('controls','');
+          el.setAttribute('autoplay','');
+          el.setAttribute('playsinline','');
+          el.src = file;
+        } else if (id) {
+          var src = provider === 'vimeo'
+            ? 'https://player.vimeo.com/video/' + id + '?autoplay=1'
+            : 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0';
+          el = document.createElement('iframe');
+          el.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+          el.setAttribute('allowfullscreen','');
+          el.setAttribute('title','Video');
+          el.src = src;
+        } else { return; }
+        btn.innerHTML = '';
+        btn.appendChild(el);
+        btn.style.cursor = 'default';
+      });
+    });
+  })();
+
+  {%- if vs_slider -%}
+  (function(){
+    var sectionId = {{ section.id | json }};
+    var SWIPER_JS = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
+    var SWIPER_CSS = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css';
+
+    function ensureCss(){
+      if (document.querySelector('link[data-rf-swiper-css]')) return;
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = SWIPER_CSS;
+      link.setAttribute('data-rf-swiper-css','');
+      document.head.appendChild(link);
+    }
+
+    function initSwiper(){
+      var root = document.getElementById('shopify-section-' + sectionId);
+      if (!root) return;
+      var el = root.querySelector('.rf-stars__swiper');
+      if (!el || el.swiper) return;
+
+      new Swiper(el, {
+        slidesPerView: {{ section.settings.columns_mobile }},
+        spaceBetween: 12,
+        loop: {{ section.settings.slider_loop | json }},
+        watchOverflow: true,
+        autoplay: {% if section.settings.slider_autoplay %}{ delay: {{ section.settings.autoplay_speed }}, disableOnInteraction: false }{% else %}false{% endif %},
+        pagination: {% if section.settings.slider_dots %}{ el: root.querySelector('.rf-stars__pagination'), clickable: true }{% else %}false{% endif %},
+        navigation: {% if section.settings.slider_arrows %}{ nextEl: root.querySelector('.rf-stars__arrow--next'), prevEl: root.querySelector('.rf-stars__arrow--prev') }{% else %}false{% endif %},
+        breakpoints: {
+          680: { slidesPerView: {{ section.settings.columns_tablet }}, spaceBetween: 14 },
+          1000: { slidesPerView: {{ section.settings.columns }}, spaceBetween: 18 }
+        }
+      });
+    }
+
+    function load(){
+      ensureCss();
+      if (window.Swiper) { initSwiper(); return; }
+      if (document.querySelector('script[data-rf-swiper-js]')) {
+        document.querySelector('script[data-rf-swiper-js]').addEventListener('load', initSwiper);
+        return;
+      }
+      var script = document.createElement('script');
+      script.src = SWIPER_JS;
+      script.setAttribute('data-rf-swiper-js','');
+      script.onload = initSwiper;
+      document.head.appendChild(script);
+    }
+
+    load();
+
+    document.addEventListener('shopify:section:load', function(e){
+      if (e.detail && e.detail.sectionId === sectionId) {
+        var root = document.getElementById('shopify-section-' + sectionId);
+        var el = root && root.querySelector('.rf-stars__swiper');
+        if (el && el.swiper) { el.swiper.destroy(true, true); }
+        if (window.Swiper) { initSwiper(); } else { load(); }
+      }
+    });
+  })();
+  {%- endif -%}
+</script>
+
+{% schema %}
+{
+  "name": "Trusted By The Stars",
+  "tag": "section",
+  "class": "section rf-stars-section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Trusted By The Stars" },
+    { "type": "range", "id": "columns", "label": "Columns (desktop)", "min": 2, "max": 5, "step": 1, "default": 4 },
+    { "type": "header", "content": "Carousel / Slider" },
+    { "type": "checkbox", "id": "enable_slider", "label": "Enable slider (Swiper)", "info": "Turns the grid into a swipeable, responsive carousel.", "default": false },
+    { "type": "checkbox", "id": "slider_arrows", "label": "Show arrows", "default": true },
+    { "type": "checkbox", "id": "slider_dots", "label": "Show dots", "default": true },
+    { "type": "checkbox", "id": "slider_loop", "label": "Loop slides", "default": true },
+    { "type": "checkbox", "id": "slider_autoplay", "label": "Autoplay", "default": false },
+    { "type": "range", "id": "autoplay_speed", "label": "Autoplay speed", "min": 2000, "max": 8000, "step": 500, "unit": "ms", "default": 4000 },
+    { "type": "range", "id": "columns_tablet", "label": "Slides per view (tablet)", "min": 1, "max": 4, "step": 1, "default": 3 },
+    { "type": "range", "id": "columns_mobile", "label": "Slides per view (mobile)", "min": 1, "max": 3, "step": 1, "default": 2 },
+    { "type": "header", "content": "Video Card Aspect Ratio" },
+    { "type": "checkbox", "id": "adapt_to_image", "label": "Adapt to poster image (auto height)", "default": false },
+    { "type": "select", "id": "aspect_ratio", "label": "Aspect ratio", "info": "Ignored when 'Adapt to poster image' is on.", "options": [
+      { "value": "default", "label": "Default (7:10 portrait)" },
+      { "value": "9:16", "label": "9:16 — Full portrait (Stories)" },
+      { "value": "2:3", "label": "2:3 — Tall portrait" },
+      { "value": "3:4", "label": "3:4 — Portrait" },
+      { "value": "1:1", "label": "1:1 — Square" },
+      { "value": "3:2", "label": "3:2 — Classic photo" },
+      { "value": "4:3", "label": "4:3 — Standard" },
+      { "value": "16:9", "label": "16:9 — Widescreen" },
+      { "value": "21:9", "label": "21:9 — Ultra-wide cinematic" }
+    ], "default": "default" },
+    { "type": "header", "content": "Section background & spacing" },
+    { "type": "color", "id": "bg_color", "label": "Section background", "default": "#ffffff" },
+    { "type": "paragraph", "content": "Padding sets the gap above & below this section." },
+    { "type": "range", "id": "padding_top", "min": 0, "max": 160, "step": 4, "unit": "px", "label": "Padding top (desktop)", "default": 48 },
+    { "type": "range", "id": "padding_bottom", "min": 0, "max": 160, "step": 4, "unit": "px", "label": "Padding bottom (desktop)", "default": 48 },
+    { "type": "range", "id": "padding_top_mobile", "min": 0, "max": 120, "step": 4, "unit": "px", "label": "Padding top (mobile)", "default": 32 },
+    { "type": "range", "id": "padding_bottom_mobile", "min": 0, "max": 120, "step": 4, "unit": "px", "label": "Padding bottom (mobile)", "default": 32 }
+  ],
+  "blocks": [
+    {
+      "type": "video",
+      "name": "Video",
+      "settings": [
+        { "type": "video", "id": "video_file", "label": "Video from store files (recommended)" },
+        { "type": "video_url", "id": "video_url", "label": "Or video URL (YouTube / Vimeo)", "accept": ["youtube", "vimeo"] },
+        { "type": "image_picker", "id": "poster", "label": "Poster image (720×1120px, recommended)" },
+        { "type": "text", "id": "title", "label": "Caption (optional)" }
+      ]
+    }
+  ],
+  "presets": [
+    { "name": "Trusted By The Stars", "blocks": [ { "type": "video" }, { "type": "video" }, { "type": "video" }, { "type": "video" } ] }
+  ]
+}
+{% endschema %}
